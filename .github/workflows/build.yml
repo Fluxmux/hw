@@ -1,0 +1,151 @@
+# based on https://dusted.codes/github-actions-for-dotnet-core-nuget-packages
+name: .NET
+
+on:
+  push:
+  pull_request:
+  release:
+    types:
+      - published
+
+env:
+  # Stop wasting time caching packages
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  # Disable sending usage data to Microsoft
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  # Project name to pack and publish
+  PROJECT_NAME: HelloWorldLibrary
+  # GitHub Packages Feed settings
+  GITHUB_FEED: https://nuget.pkg.github.com/salem84/
+  GITHUB_USER: salem84
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Official NuGet Feed settings
+  NUGET_FEED: https://api.nuget.org/v3/index.json
+  NUGET_KEY: ${{ secrets.NUGET_KEY }}
+
+
+jobs:
+  build:  
+    runs-on: ubuntu-latest
+    env:
+      CONFIGURATION: "Release"
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Fetch all history for all tags and branches
+      run: git fetch --prune --unshallow
+
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v0.9.7
+      with:
+        versionSpec: '5.x'
+
+    - name: Use GitVersion
+      id: gitversion # step id used as reference for output values
+      uses: gittools/actions/gitversion/execute@v0.9.7
+
+    - run: |
+        echo "Build Info"
+        echo "-----------------------------------------------------------------------"
+        echo "Configuration: $CONFIGURATION"
+        echo "Run ID: ${{ github.run_id }}""
+        echo "Output Run Number: ${{ github.run_number }}"" 
+        echo "Major: ${{ steps.gitversion.outputs.Major }}"
+        echo "Minor: ${{ steps.gitversion.outputs.Minor }}"
+        echo "Patch: ${{ steps.gitversion.outputs.Patch }}"
+        echo "PreReleaseTag: ${{ steps.gitversion.outputs.PreReleaseTag }}"
+        echo "PreReleaseTagWithDash: ${{ steps.gitversion.outputs.PreReleaseTagWithDash }}"
+        echo "PreReleaseLabel: ${{ steps.gitversion.outputs.PreReleaseLabel }}"
+        echo "PreReleaseNumber: ${{ steps.gitversion.outputs.PreReleaseNumber }}"
+        echo "WeightedPreReleaseNumber: ${{ steps.gitversion.outputs.WeightedPreReleaseNumber }}"
+        echo "BuildMetaData: ${{ steps.gitversion.outputs.BuildMetaData }}"
+        echo "BuildMetaDataPadded: ${{ steps.gitversion.outputs.BuildMetaDataPadded }}"
+        echo "FullBuildMetaData: ${{ steps.gitversion.outputs.FullBuildMetaData }}"
+        echo "MajorMinorPatch: ${{ steps.gitversion.outputs.MajorMinorPatch }}"
+        echo "SemVer: ${{ steps.gitversion.outputs.SemVer }}"
+        echo "LegacySemVer: ${{ steps.gitversion.outputs.LegacySemVer }}"
+        echo "LegacySemVerPadded: ${{ steps.gitversion.outputs.LegacySemVerPadded }}"
+        echo "AssemblySemVer: ${{ steps.gitversion.outputs.AssemblySemVer }}"
+        echo "AssemblySemFileVer: ${{ steps.gitversion.outputs.AssemblySemFileVer }}"
+        echo "FullSemVer: ${{ steps.gitversion.outputs.FullSemVer }}"
+        echo "InformationalVersion: ${{ steps.gitversion.outputs.InformationalVersion }}"
+        echo "BranchName: ${{ steps.gitversion.outputs.BranchName }}"
+        echo "Sha: ${{ steps.gitversion.outputs.Sha }}"
+        echo "ShortSha: ${{ steps.gitversion.outputs.ShortSha }}"
+        echo "NuGetVersionV2: ${{ steps.gitversion.outputs.NuGetVersionV2 }}"
+        echo "NuGetVersion: ${{ steps.gitversion.outputs.NuGetVersion }}"
+        echo "NuGetPreReleaseTagV2: ${{ steps.gitversion.outputs.NuGetPreReleaseTagV2 }}"
+        echo "NuGetPreReleaseTag: ${{ steps.gitversion.outputs.NuGetPreReleaseTag }}"
+        echo "VersionSourceSha: ${{ steps.gitversion.outputs.VersionSourceSha }}"
+        echo "CommitsSinceVersionSource: ${{ steps.gitversion.outputs.CommitsSinceVersionSource }}"
+        echo "CommitsSinceVersionSourcePadded: ${{ steps.gitversion.outputs.CommitsSinceVersionSourcePadded }}"
+        echo "CommitDate: ${{ steps.gitversion.outputs.CommitDate }}"
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore --configuration $CONFIGURATION -p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
+
+    - name: Pack
+      run: dotnet pack -v normal -c $CONFIGURATION --no-restore --no-build --include-symbols --include-source -p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }} src/$PROJECT_NAME/$PROJECT_NAME.*proj
+    
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: nupkg
+        path: ./src/${{ env.PROJECT_NAME }}/bin/${{ env.CONFIGURATION }}/*.nupkg
+        
+  prerelease:
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v1
+        with:
+          name: nupkg
+      - name: Push to GitHub Feed
+        shell: bash
+        run: |
+          for f in ./nupkg/*.nupkg
+          do
+            curl -vX PUT -u "$GITHUB_USER:$GITHUB_TOKEN" -F package=@$f $GITHUB_FEED
+          done
+          
+  deploy:
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 5.0.x
+      - name: Create Release NuGet package
+        run: |
+          arrTag=(${GITHUB_REF//\// })
+          VERSION="${arrTag[2]}"
+          echo Version: $VERSION
+          VERSION="${VERSION//v}"
+          echo Clean Version: $VERSION
+          dotnet pack -v normal -c Release --include-symbols --include-source -p:PackageVersion=$VERSION -o nupkg src/$PROJECT_NAME/$PROJECT_NAME.*proj
+      - name: Push to GitHub Feed
+        run: |
+          for f in ./nupkg/*.nupkg
+          do
+            curl -vX PUT -u "$GITHUB_USER:$GITHUB_TOKEN" -F package=@$f $GITHUB_FEED
+          done
+      - name: Push to NuGet Feed
+        run: dotnet nuget push ./nupkg/*.nupkg --source $NUGET_FEED --skip-duplicate --api-key $NUGET_KEY
