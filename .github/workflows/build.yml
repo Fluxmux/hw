@@ -14,7 +14,7 @@ env:
   # Disable sending usage data to Microsoft
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   # Project name to pack and publish
-  PROJECT_NAME: HelloWorldLibrary
+  PROJECT_NAME: DotnetHelloWorldLibrary
   # GitHub Packages Feed settings
   GITHUB_FEED: https://nuget.pkg.github.com/salem84/
   GITHUB_USER: salem84
@@ -112,8 +112,8 @@ jobs:
       uses: roryprimrose/set-vs-sdk-project-version@v1
       with:
         version: "${{ steps.gitversion.outputs.NuGetVersionV2 }}-preview.${{github.run_number}}"
-        assemblyVersion: ${{ steps.gitversion.outputs.AssemblySemVer }}
-        fileVersion: ${{ steps.gitversion.outputs.MajorMinorPatch }}
+        assemblyVersion: ${{ steps.gitversion.outputs.AssemblySemVer }}-preview.${{github.run_number}}
+        fileVersion: ${{ steps.gitversion.outputs.MajorMinorPatch }}-preview.${{github.run_number}}
         informationalVersion: ${{ steps.gitversion.outputs.InformationalVersion }}
       if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' }}
 
@@ -164,3 +164,4 @@ jobs:
       
       - name: Push to NuGet Feed
         run: dotnet nuget push ./nupkg/*.nupkg --source $NUGET_FEED --skip-duplicate --api-key $NUGET_KEY
+        if: startsWith(github.ref, 'refs/tags/')
