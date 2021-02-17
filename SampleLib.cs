@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace HelloWorldLibrary
+namespace DotnetHelloWorldLibrary
 {
     public class SampleLib
     {
