@@ -111,9 +111,9 @@ jobs:
     - name: Update project version (prerelease)
       uses: roryprimrose/set-vs-sdk-project-version@v1
       with:
-        version: "${{ steps.gitversion.outputs.NuGetVersionV2 }}-preview.${{github.run_number}}"
-        assemblyVersion: ${{ steps.gitversion.outputs.AssemblySemVer }}-preview.${{github.run_number}}
-        fileVersion: ${{ steps.gitversion.outputs.MajorMinorPatch }}-preview.${{github.run_number}}
+        version: "${{ steps.gitversion.outputs.NuGetVersionV2 }}-preview.${{github.run_id}}.${{github.run_number}}"
+        assemblyVersion: "${{steps.gitversion.outputs.Major}}.${{steps.gitversion.outputs.Minor}}.${{github.run_id}}.0"
+        fileVersion: "${{steps.gitversion.outputs.Major}}.${{steps.gitversion.outputs.Minor}}.${{github.run_id}}"
         informationalVersion: ${{ steps.gitversion.outputs.InformationalVersion }}
       if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' }}
 
