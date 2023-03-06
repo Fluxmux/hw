@@ -7,8 +7,8 @@ branches:
     is-mainline: true
   tags:
     regex: ^tags
-    mode: ContinuousDelivery
-    source-branches: ['master']
+    mode: ContinuousDeployment
+    source-branches: ['main']
 ignore:
   sha: []
 merge-message-formats: {}
