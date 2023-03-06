@@ -1,14 +1,14 @@
 mode: Mainline
-branches:
-  master:
-    regex: ^master$|^main$
-    mode: ContinuousDeployment
-    tag: ci
-    is-mainline: true
-  tags:
-    regex: ^tags
-    mode: ContinuousDeployment
-    source-branches: ['main']
-ignore:
-  sha: []
-merge-message-formats: {}
+# branches:
+#   master:
+#     regex: ^master$|^main$
+#     mode: ContinuousDeployment
+#     tag: ci
+#     is-mainline: true
+#   tags:
+#     regex: ^tags
+#     mode: ContinuousDeployment
+#     source-branches: ['main']
+# ignore:
+#   sha: []
+# merge-message-formats: {}
