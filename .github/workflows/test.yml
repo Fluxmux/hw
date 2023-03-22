@@ -18,7 +18,7 @@ jobs:
     needs: first_job
     runs-on: ubuntu-latest
     steps:
-    - name: aaaa
+    - name: Print Hello
       run: |
         echo "Hello World!"
         echo "Hi ${name} !"
